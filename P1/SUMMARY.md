@@ -2,4 +2,4 @@
 
 ## Kết quả chạy autograder
 
-  [![asciicast](https://asciinema.org/a/eijKPHLPHweIuxBrQ1XaWMSEE.svg)](https://asciinema.org/aeijKPHLPHweIuxBrQ1XaWMSEE)
+  [![asciicast](https://asciinema.org/a/eijKPHLPHweIuxBrQ1XaWMSEE.svg)](https://asciinema.org/a/eijKPHLPHweIuxBrQ1XaWMSEE)
