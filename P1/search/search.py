@@ -74,7 +74,7 @@ def tinyMazeSearch(problem):
 
 def depthFirstSearch(problem):
     """
-    Search the deepest nodes in the search tree first.
+    Search the deepest states in the search tree first.
 
     Your search algorithm needs to return a list of actions that reaches the
     goal. Make sure to implement a graph search algorithm.
@@ -87,16 +87,52 @@ def depthFirstSearch(problem):
     print("Start's successors:", problem.getSuccessors(problem.getStartState()))
     """
     "*** YOUR CODE HERE ***"
+    checked = set()
+    stack = util.Stack()
+    stack.push((problem.getStartState(), []))
+    while not stack.isEmpty():
+        state, action = stack.pop()
+        if (state not in checked):
+            checked.add(state)
+            if  (problem.isGoalState(state)):
+                return action
+            else:
+                for successor in problem.getSuccessors(state):
+                    stack.push((successor[0], action + [successor[1]]))
     util.raiseNotDefined()
 
 def breadthFirstSearch(problem):
-    """Search the shallowest nodes in the search tree first."""
+    """Search the shallowest states in the search tree first."""
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    checked = set()
+    queue = util.Queue()
+    queue.push((problem.getStartState(), []))
+    while not queue.isEmpty():
+        state, action = queue.pop()
+        if (state not in checked):
+            checked.add(state)
+            if  (problem.isGoalState(state)):
+                return action
+            else:
+                for successor in problem.getSuccessors(state):
+                    queue.push((successor[0], action + [successor[1]]))
+    util.raiseNotDefined()    
 
 def uniformCostSearch(problem):
-    """Search the node of least total cost first."""
+    """Search the state of least total cost first."""
     "*** YOUR CODE HERE ***"
+    checked = set()
+    priorityQueue = util.PriorityQueue()
+    priorityQueue.push((problem.getStartState(), []), 0)
+    while not priorityQueue.isEmpty():
+        state, actions = priorityQueue.pop()
+        if state in checked:
+            continue
+        checked.add(state)
+        if problem.isGoalState(state):
+            return actions
+        for successor, action, stepCost in problem.getSuccessors(state):
+                priorityQueue.push((successor, actions + [action]),stepCost + problem.getCostOfActions(actions))
     util.raiseNotDefined()
 
 def nullHeuristic(state, problem=None):
@@ -107,8 +143,20 @@ def nullHeuristic(state, problem=None):
     return 0
 
 def aStarSearch(problem, heuristic=nullHeuristic):
-    """Search the node that has the lowest combined cost and heuristic first."""
+    """Search the state that has the lowest combined cost and heuristic first."""
     "*** YOUR CODE HERE ***"
+    checked = set()
+    priorityQueue = util.PriorityQueue()
+    priorityQueue.push((problem.getStartState(), []), 0)
+    while not priorityQueue.isEmpty():
+        state, actions = priorityQueue.pop()
+        if state in checked:
+            continue
+        checked.add(state)
+        if problem.isGoalState(state):
+            return actions
+        for successor, action, stepCost in problem.getSuccessors(state):
+                priorityQueue.push((successor, actions + [action]), stepCost + problem.getCostOfActions(actions) + heuristic(successor, problem = problem))
     util.raiseNotDefined()
 
 
