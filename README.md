@@ -1,1 +1,1 @@
-# INT3401
+# INT3401 Trí tuệ nhân tạo
