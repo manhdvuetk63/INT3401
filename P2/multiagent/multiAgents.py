@@ -15,7 +15,7 @@
 from util import manhattanDistance
 from game import Directions
 import random, util
-
+import math
 from game import Agent
 
 class ReflexAgent(Agent):
@@ -27,7 +27,6 @@ class ReflexAgent(Agent):
     it in any way you see fit, so long as you don't touch our method
     headers.
     """
-
 
     def getAction(self, gameState):
         """
@@ -74,7 +73,18 @@ class ReflexAgent(Agent):
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
         "*** YOUR CODE HERE ***"
-        return successorGameState.getScore()
+        ghosts = [ghost.getPosition() for ghost in newGhostStates]
+        foods = newFood.asList()
+        if not min(newScaredTimes) > 0 and newPos in ghosts:
+            return -1
+        elif newPos in currentGameState.getFood().asList():
+            return 1
+        else:
+            foodsSortedByDistance = sorted(foods, key=lambda food: util.manhattanDistance(food, newPos))
+            ghostsSortedByDistance = sorted(ghosts, key=lambda ghost: util.manhattanDistance(ghost, newPos))
+            return 1 / (util.manhattanDistance(foodsSortedByDistance[0], newPos)) - 1 / util.manhattanDistance(
+                ghostsSortedByDistance[0], newPos)
+
 
 def scoreEvaluationFunction(currentGameState):
     """
@@ -135,7 +145,37 @@ class MinimaxAgent(MultiAgentSearchAgent):
         Returns whether or not the game state is a losing state
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+
+        def isEnd(state, depth):
+            return state.isWin() or state.isLose() or depth == self.depth
+
+        def findMin(state, depth, ghost_index):
+            if isEnd(state, depth):
+                return self.evaluationFunction(state)
+            else:
+                value = math.inf
+                for action in state.getLegalActions(ghost_index):
+                    if ghost_index == gameState.getNumAgents() - 1:
+                        value = min(value, findMax(state.generateSuccessor(ghost_index, action), depth + 1))
+                    else:
+                        value = min(value, findMin(state.generateSuccessor(ghost_index, action), depth, ghost_index + 1))
+                return value
+
+        def findMax(state, depth):
+            if isEnd(state, depth):
+                return self.evaluationFunction(state)
+            else:
+                value = - math.inf
+                for action in state.getLegalActions(0):
+                    value = max(value, findMin(state.generateSuccessor(0, action), depth, 1))
+                return value
+
+        actionsWithScore = [(action, findMin(gameState.generateSuccessor(0, action), 0, 1)) for action in
+                            gameState.getLegalActions(0)]
+        actionsWithScore.sort(key=lambda element: element[1], reverse=True)
+
+        return actionsWithScore[0][0]
+
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
@@ -143,11 +183,47 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
     """
 
     def getAction(self, gameState):
-        """
-        Returns the minimax action using self.depth and self.evaluationFunction
-        """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        def isEnd(state, depth):
+            return state.isWin() or state.isLose() or depth == self.depth
+
+        def findMax(state, depth, alpha, beta):
+            if isEnd(state, depth):
+                return self.evaluationFunction(state)
+            else:
+                value = - math.inf
+                for action in state.getLegalActions(0):
+                    value = max(value, findMin(state.generateSuccessor(0, action), depth, 1, alpha, beta))
+                    if value > beta:
+                        return value
+                    alpha = max(alpha, value)
+                return value
+
+        def findMin(state, depth, ghost_index, alpha, beta):
+            if isEnd(state, depth):
+                return self.evaluationFunction(state)
+            else:
+                value = math.inf
+                for action in state.getLegalActions(ghost_index):
+                    if ghost_index == state.getNumAgents() - 1:
+                        value = min(value, findMax(state.generateSuccessor(ghost_index, action), depth + 1,  alpha, beta))
+                    else:
+                        value = min(value, findMin(state.generateSuccessor(ghost_index, action), depth, ghost_index + 1, alpha, beta))
+                    if value < alpha:
+                        return value
+                    beta = min(beta, value)
+                return value
+
+        maxValue = - math.inf
+        alpha = - math.inf
+        beta = math.inf
+        optimalAction = None
+        for action in gameState.getLegalActions(0):
+            nextValue = findMin(gameState.generateSuccessor(0, action), 0, 1, alpha, beta)
+            if nextValue > maxValue:
+                maxValue = nextValue
+                optimalAction = action
+            alpha = max(alpha, maxValue)
+        return optimalAction
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
@@ -162,7 +238,42 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         legal moves.
         """
         "*** YOUR CODE HERE ***"
+
+        def isEnd(state, depth):
+            return state.isWin() or state.isLose() or depth == self.depth
+
+        def findMax(state, depth):
+            if isEnd(state, depth):
+                return self.evaluationFunction(state)
+            else:
+                value = - math.inf
+                for action in state.getLegalActions(0):
+                    value = max(value, findAvg(state.generateSuccessor(0, action), depth, 1))
+                return value
+
+        def findAvg(state, depth, ghost_index):
+            if isEnd(state, depth):
+                return self.evaluationFunction(state)
+            else:
+                value = 0
+                for action in state.getLegalActions(ghost_index):
+                    if ghost_index == state.getNumAgents() - 1:
+                        value = value + findMax(state.generateSuccessor(ghost_index, action), depth + 1)
+                    else:
+                        value = value + findAvg(state.generateSuccessor(ghost_index, action), depth, ghost_index + 1)
+                return value
+
+        maxValue = - math.inf
+        optimalAction = None
+
+        for action in gameState.getLegalActions(0):
+            nextValue = findAvg(gameState.generateSuccessor(0, action), 0, 1)
+            if nextValue > maxValue:
+                maxValue = nextValue
+                optimalAction = action
+        return optimalAction
         util.raiseNotDefined()
+
 
 def betterEvaluationFunction(currentGameState):
     """
@@ -172,7 +283,54 @@ def betterEvaluationFunction(currentGameState):
     DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
+    newPos = currentGameState.getPacmanPosition()
+    newFood = currentGameState.getFood()
+    newGhostStates = currentGameState.getGhostStates()
+    newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
+    walls = currentGameState.getWalls()
+
+    # if not new ScaredTimes new state is ghost: return lowest value
+
+    "*** YOUR CODE HERE ***"
+    ghosts = [ghost.getPosition() for ghost in newGhostStates]
+    foods = newFood.asList()
+
+    if not min(newScaredTimes) > 0 and newPos in ghosts:
+        return float('-inf')
+    if currentGameState.isLose():
+        return float('-inf')
+
+    # if not new ScaredTimes new state is ghost: return lowest value
+
+    foodsSortedByDistance = sorted(foods, key=lambda food: util.manhattanDistance(food, newPos))
+    ghostsSortedByDistance = sorted(ghosts, key=lambda ghost: util.manhattanDistance(ghost, newPos))
+
+    score = 0
+
+    if util.manhattanDistance(ghostsSortedByDistance[0], newPos) < 3:
+        score -= 300
+    if util.manhattanDistance(ghostsSortedByDistance[0], newPos) < 2:
+        score -= 1000
+    if util.manhattanDistance(ghostsSortedByDistance[0], newPos) < 1:
+        return float('-inf')
+
+    if len(currentGameState.getCapsules()) < 2:
+        score += 100
+
+    if len(foodsSortedByDistance) == 0 or len(ghostsSortedByDistance) == 0:
+        score += scoreEvaluationFunction(currentGameState) + 8
+    else:
+        score += (
+                scoreEvaluationFunction(currentGameState) +
+                8 / util.manhattanDistance(foodsSortedByDistance[0], newPos) -
+                1 / util.manhattanDistance(ghostsSortedByDistance[0], newPos) -
+                1 / util.manhattanDistance(ghostsSortedByDistance[-1], newPos)
+        )
+
+    return score
+
     util.raiseNotDefined()
+
 
 # Abbreviation
 better = betterEvaluationFunction
