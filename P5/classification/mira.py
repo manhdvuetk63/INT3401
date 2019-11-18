@@ -4,7 +4,7 @@
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
 # attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-# 
+#
 # Attribution Information: The Pacman AI projects were developed at UC Berkeley.
 # The core projects and autograders were primarily created by John DeNero
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
@@ -27,9 +27,9 @@ class MiraClassifier:
         self.legalLabels = legalLabels
         self.type = "mira"
         self.automaticTuning = False
-        self.C = 1
+        self.C = 0.001
         self.legalLabels = legalLabels
-        self.max_iterations = max_iterations*2
+        self.max_iterations = max_iterations
         self.initializeWeightsToZero()
 
     def initializeWeightsToZero(self):
@@ -60,50 +60,32 @@ class MiraClassifier:
         datum is a counter from features to values for those features
         representing a vector of values.
         """
-        max_acc, max_C, max_weights = max([self.get_accuracy_c_weight( c, trainingData, trainingLabels, validationData, validationLabels ) for c in Cgrid])
-        self.weights = max_weights
-
-    def get_accuracy_c_weight(self, c, trainingData, trainingLabels, validationData, validationLabels ):
+        bestWeights = None
+        bestCorrect = 0.0
         weights = self.weights.copy()
-        max_acc, max_weights = float('-inf'), None
-        for iteration in range(self.max_iterations):
-            print "Starting iteration ", iteration, "..."
-            for i in range(len(trainingData)):
-                f = trainingData[i]
-                ytrue = trainingLabels[i]
-                score_max, ypred = max([
-                    (f * weights[y],y) for y in self.legalLabels])
-                if ypred != ytrue:
-                    tau = self.get_tau(c, weights[ypred], weights[ytrue], f)
-                    ftau = f.copy()
-                    for key in ftau.keys():
-                        ftau[key] = 1.0 * ftau[key] * tau
-                    weights[ytrue] += ftau
-                    weights[ypred] -= ftau
-            accuracy = self.get_accuracy(weights, validationData, validationLabels)
-            if accuracy > max_acc:
-                max_acc = accuracy
-                max_weights = weights.copy()
-            print "iteration", iteration, "c =", c, "accuracy =", accuracy
-        return max_acc, c, max_weights
+        for c in Cgrid:
+            self.weights = weights.copy()
+            for n in range(self.max_iterations):
+                for i, data in enumerate(trainingData):
+                    actual = trainingLabels[i]
+                    prediction = self.classify([data])[0]
+                    if actual != prediction:
+                        f = data.copy()
+                        tau = min(c, ((self.weights[prediction] - self.weights[actual]) * f + 1.0) / (2.0 * (f * f)))
+                        f.divideAll(1.0 / tau)
+                        self.weights[actual] = self.weights[actual] + f
+                        self.weights[prediction] = self.weights[prediction] - f
 
-    def get_tau(self, c, wypred, wytrue, f):
-        sub = wypred-wytrue
-        nominator = sub*f+1
-        denominator = f*f*2
-        #print 'tmp', nominator, denominator, 1.0*nominator/denominator
-        return min(c, 1.0*nominator/denominator)
+            correct = 0
+            guesses = self.classify(validationData)
+            for i, guess in enumerate(guesses):
+                correct = correct + (validationLabels[i] == guess and 1.0 or 0.0)
 
-    def get_accuracy(self, weights, validationData, validationLabels):
-        count = 0.0
-        for i in range(len(validationData)):
-            f = validationData[i]
-            ytrue = validationLabels[i]
-            score_max, ypred = max([
-                (f * weights[y],y) for y in self.legalLabels])
-            if ypred == ytrue:
-                count += 1
-        return count / len(validationData)
+            if correct > bestCorrect:
+                bestCorrect = correct
+                bestWeights = self.weights
+
+        self.weights = bestWeights
 
     def classify(self, data ):
         """
@@ -119,4 +101,3 @@ class MiraClassifier:
                 vectors[l] = self.weights[l] * datum
             guesses.append(vectors.argMax())
         return guesses
-

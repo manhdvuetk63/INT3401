@@ -23,7 +23,7 @@ import mira
 import samples
 import sys
 import util
-from pacman import GameState
+from pacman import GameState, Directions
 
 TEST_SET_SIZE = 100
 DIGIT_DATUM_WIDTH=28
@@ -77,12 +77,56 @@ def enhancedFeatureExtractorDigit(datum):
     """
     features =  basicFeatureExtractorDigit(datum)
 
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    breaks = 0
+    pixels = datum.getPixels()
+    nonzero = 0
+    firstLeft = None
+    aboveCenter = 0
+    for i in range(len(pixels)):
+        for j in range(1,len(pixels[i])):
+            if pixels[i][j] != 0:
+                nonzero += 1
+                if not firstLeft or j < firstLeft:
+                    firstLeft = j
+                if j <= (len(pixels) + 1) / 2:
+                    aboveCenter += 1
+            if pixels[i][j] != pixels[i][j - 1]:
+                breaks += 1
 
+    width = len(pixels[0]) - (firstLeft * 2)
+    firstTop = None
+    pastRight = 0
+    for j in range(len(pixels[0])):
+        col = [p[j] for p in pixels]
+        for i in range(1,len(col)):
+            if col[j] != 0:
+                nonzero += 1
+                if not firstTop or i < firstTop:
+                    firstTop = i
+                if i <= (len(pixels[0]) + 1) / 2:
+                    pastRight += 1
+            if col[i] != col[i - 1]:
+                breaks += 1
+
+    height = len(pixels) - (firstTop * 2)
+    aspectRatio = float(width) / height
+    for n in range(5):
+        features[n] = breaks > 175 and 1.0 or 0.0
+
+    for n in range(10):
+        features[(n + 1) * 10] = aspectRatio < 0.69
+
+    for n in range(5):
+        features[-n] = nonzero > 300 and 1.0 or 0.0
+
+    percentAbove = float(aboveCenter) / nonzero
+    for n in range(5):
+        features[-(n + 1) * 10] = percentAbove > 0.35 and 1.0 or 0.0
+
+    percentRight = float(pastRight) / nonzero
+    for n in range(1000, 1005):
+        features[n] = percentRight < 0.27 and 1.0 or 0.0
     return features
-
-
 
 def basicFeatureExtractorPacman(state):
     """
@@ -123,8 +167,32 @@ def enhancedPacmanFeatures(state, action):
     It should return a counter with { <feature name> : <feature value>, ... }
     """
     features = util.Counter()
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+
+    features["STOP"] = int(action == Directions.STOP) * 100
+
+    successor = state.generateSuccessor(0, action)
+    pac_pos = successor.getPacmanPosition()
+    ghosts = successor.getGhostPositions()
+    capsules = successor.getCapsules()
+    state_food = state.getFood()
+    food = [(x, y) for x, row in enumerate(state_food) for y, food in enumerate(row) if food]
+
+    nearest_ghosts = sorted([util.manhattanDistance(pac_pos, i) for i in ghosts])
+    features["nearest_ghost"] = nearest_ghosts[0] * 1.0
+    for i in xrange(min(len(nearest_ghosts), 1)):
+        features[("ghost", i)] = 5 / (0.1 + nearest_ghosts[i])
+
+    nearest_caps = sorted([util.manhattanDistance(pac_pos, i) for i in capsules])
+    for i in xrange(min(len(nearest_caps), 1)):
+        features[("capsule", i)] = 15 / (1 + nearest_caps[i])
+
+    nearest_food = sorted([util.manhattanDistance(pac_pos, i) for i in food])
+    for i, weight in zip(xrange(min(len(nearest_food), 5)), [1.3, 0.8] + [0.9] * 3):
+        features[("food", i)] = weight * nearest_food[i]
+    features["capsule_count"] = len(capsules) * 10
+    features["win"] = state.isWin()
+    features["lose"] = state.isLose()
+    features["score"] = state.getScore() * 10
     return features
 
 
